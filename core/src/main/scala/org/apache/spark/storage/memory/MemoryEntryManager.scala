@@ -5,9 +5,9 @@
 package org.apache.spark.storage.memory
 
 import java.util
-import java.util.Map
 import java.util.Map.Entry
-
+import java.util.{Comparator, TreeMap}
+import org.apache.spark.storage.BlockId
 
 private[storage] trait BaseMemoryManager[K, V] {
   def get(blockId: K): V
@@ -80,6 +80,70 @@ private[storage] class FIFOMemoryManager[K, V] extends BaseMemoryManager[K, V]{
   override def clear(): Unit = {
     entries.synchronized {
       entries.clear()
+    }
+  }
+
+  override def contains(blockId: K): Boolean = {
+    entries.synchronized {
+      entries.containsKey(blockId)
+    }
+  }
+
+  override def entrySet(): util.Set[Entry[K, V]] = {
+    entries.entrySet()
+  }
+}
+
+case class FrequencyComparator[T] (frequency: util.HashMap[T,Long]) extends Comparator[T] {
+  override def compare(k1: T, k2: T): Int = {
+    frequency.get(k1) compare frequency.get(k2)
+  }
+}
+
+private[storage] class LFUMemoryManager[K, V] extends BaseMemoryManager[K, V]{
+  private val frequency = new util.HashMap[K, Long]()
+  private val entries = new TreeMap[K, V](FrequencyComparator[K](frequency))
+
+
+  override def get(blockId: K): V = {
+    entries synchronized {
+      val block = entries remove blockId
+      frequency synchronized {
+        val freq = frequency get blockId
+        frequency.put(blockId, freq+1)
+      }
+      entries.put(blockId, block)
+    }
+  }
+
+  override def put(blockId: K, block: V): V = {
+    entries synchronized {
+      entries.put(blockId, block)
+      frequency synchronized {
+        frequency.put(blockId, 0)
+        entries synchronized {
+          entries.put(blockId, block)
+        }
+      }
+    }
+  }
+
+  override def remove(blockId: K): V = {
+    entries synchronized {
+      val block = entries remove blockId
+      frequency synchronized {
+        frequency remove blockId
+      }
+      block
+    }
+  }
+
+  override def clear(): Unit = {
+    entries synchronized {
+      entries.clear()
+      frequency synchronized {
+        frequency.clear()
+      }
     }
   }
 
