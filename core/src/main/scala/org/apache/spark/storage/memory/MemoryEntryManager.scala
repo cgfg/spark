@@ -121,9 +121,6 @@ private[storage] class LFUMemoryManager[K, V] extends BaseMemoryManager[K, V]{
       entries.put(blockId, block)
       frequency synchronized {
         frequency.put(blockId, 0)
-        entries synchronized {
-          entries.put(blockId, block)
-        }
       }
     }
   }
