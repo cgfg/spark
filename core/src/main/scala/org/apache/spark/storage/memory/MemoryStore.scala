@@ -88,7 +88,7 @@ private[spark] class MemoryStore(
   // acquiring or releasing unroll memory, must be synchronized on `memoryManager`!
 
 //  private val entries = new LinkedHashMap[BlockId, MemoryEntry[_]](32, 0.75f, true)
-  private val entries = new LRUMemoryManager[BlockId, MemoryEntry[_]]()
+  private val entries = new LFUMemoryManager[BlockId, MemoryEntry[_]]()
 
   // A mapping from taskAttemptId to amount of memory used for unrolling a block (in bytes)
   // All accesses of this map are assumed to have manually synchronized on `memoryManager`
