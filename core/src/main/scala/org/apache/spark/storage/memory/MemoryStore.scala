@@ -88,7 +88,7 @@ private[spark] class MemoryStore(
   // acquiring or releasing unroll memory, must be synchronized on `memoryManager`!
 
 //  private val entries = new LinkedHashMap[BlockId, MemoryEntry[_]](32, 0.75f, true)
-  private val entries = new LFUMemoryManager[BlockId, MemoryEntry[_]]()
+  private val entries = new LRUMemoryManager[BlockId, MemoryEntry[_]]()
 
   // A mapping from taskAttemptId to amount of memory used for unrolling a block (in bytes)
   // All accesses of this map are assumed to have manually synchronized on `memoryManager`
@@ -498,18 +498,20 @@ private[spark] class MemoryStore(
       // (because of getValue or getBytes) while traversing the iterator, as that
       // can lead to exceptions.
       entries.synchronized {
-        val iterator = entries.entrySet().iterator()
-        while (freedMemory < space && iterator.hasNext) {
-          val pair = iterator.next()
-          val blockId = pair.getKey
-          val entry = pair.getValue
-          if (blockIsEvictable(blockId, entry)) {
-            // We don't want to evict blocks which are currently being read, so we need to obtain
-            // an exclusive write lock on blocks which are candidates for eviction. We perform a
-            // non-blocking "tryLock" here in order to ignore blocks which are locked for reading:
-            if (blockInfoManager.lockForWriting(blockId, blocking = false).isDefined) {
-              selectedBlocks += blockId
-              freedMemory += pair.getValue.size
+        entries.getEntries().synchronized {
+          val iterator = entries.entrySet().iterator()
+          while (freedMemory < space && iterator.hasNext) {
+            val pair = iterator.next()
+            val blockId = pair.getKey
+            val entry = pair.getValue
+            if (blockIsEvictable(blockId, entry)) {
+              // We don't want to evict blocks which are currently being read, so we need to obtain
+              // an exclusive write lock on blocks which are candidates for eviction. We perform a
+              // non-blocking "tryLock" here in order to ignore blocks which are locked for reading:
+              if (blockInfoManager.lockForWriting(blockId, blocking = false).isDefined) {
+                selectedBlocks += blockId
+                freedMemory += pair.getValue.size
+              }
             }
           }
         }

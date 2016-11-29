@@ -54,6 +54,10 @@ private[storage] class LRUMemoryManager[K, V] extends BaseMemoryManager[K, V] {
   override def entrySet(): util.Set[Entry[K, V]] = {
     entries.entrySet()
   }
+
+  def getEntries(): util.LinkedHashMap[K,V] = {
+    entries
+  }
 }
 
 private[storage] class FIFOMemoryManager[K, V] extends BaseMemoryManager[K, V]{
@@ -91,6 +95,10 @@ private[storage] class FIFOMemoryManager[K, V] extends BaseMemoryManager[K, V]{
 
   override def entrySet(): util.Set[Entry[K, V]] = {
     entries.entrySet()
+  }
+
+  def getEntries(): util.LinkedHashMap[K,V] = {
+      entries
   }
 }
 
@@ -152,5 +160,9 @@ private[storage] class LFUMemoryManager[K, V] extends BaseMemoryManager[K, V]{
 
   override def entrySet(): util.Set[Entry[K, V]] = {
     entries.entrySet()
+  }
+
+  def getEntries(): util.LinkedHashMap[K,V] = {
+      entries
   }
 }
